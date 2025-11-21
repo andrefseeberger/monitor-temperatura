@@ -1,0 +1,19 @@
+{
+    "position": {
+        "horizontal": "right",
+        "vertical": "top",
+        "margin_x": 10,
+        "margin_y": 10
+    },
+    "color": {
+        "background": "#111",
+        "alpha": 0.7,
+        "font": "#FFF"
+    },
+    "font": {
+        "family": "Consolas",
+        "size": 8,
+        "weight": "bold"
+    },
+    "timer": 5000
+}
