@@ -5,6 +5,8 @@ import tkinter as tk
 from tkinter import colorchooser
 from tkinter import font
 from screeninfo import get_monitors
+import csv
+from datetime import datetime
 
 base_path = os.path.dirname(os.path.abspath(__file__))
 dll_path = os.path.join(base_path, "OpenHardwareMonitorLib.dll")
@@ -15,6 +17,9 @@ from OpenHardwareMonitor import Hardware
 
 class TempHUD:
     def __init__(self, CONFIG_FILE="config.json"):
+
+        self.log_buffer = []
+        self.log_limit = 1
 
         self.CONFIG_FILE = CONFIG_FILE
         self.config = self.load_config()
@@ -105,10 +110,57 @@ class TempHUD:
             self.save_config(DEFAULT_CONFIG)
             return DEFAULT_CONFIG
 
-    def save_config(self, data = None):
-        if(data == None):
+    def registrar_leitura(self, cpu_temp, gpu_temp):
+        data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.log_buffer.append(
+            {"datetime": data_hora, "cpu": cpu_temp, "gpu": gpu_temp}
+        )
+
+        # Se atingiu 10 registros → salva no CSV
+        if len(self.log_buffer) >= self.log_limit:
+            self.salvar_csv()
+
+    def salvar_csv(self):
+        data_hoje = datetime.now().strftime("%Y-%m-%d")
+        filename = f"logs_{data_hoje}.csv"
+        novo_arquivo = not os.path.exists(filename)
+
+        try:
+            with open(filename, "a", newline="", encoding="utf-8") as csvfile:
+                writer = csv.writer(csvfile, delimiter=";")
+
+                # Cria cabeçalho se for arquivo novo
+                if novo_arquivo:
+                    header = ["timestamp", "cpu", "gpu"]
+                    writer.writerow(header)
+
+                # Escreve todas as linhas pendentes
+                for row in self.log_buffer:
+                    writer.writerow(
+                        [
+                            row.get("datetime", ""),
+                            row.get("cpu", ""),
+                            row.get("gpu", ""),
+                        ]
+                    )
+
+            # Se chegou até aqui, salvou com sucesso → limpar buffer
+            self.log_buffer.clear()
+
+        except PermissionError:
+            # Arquivo está aberto/bloqueado → não limpar buffer
+            print(
+                f"[AVISO] Arquivo '{filename}' está em uso. Tentando novamente depois."
+            )
+
+        except Exception as e:
+            # Qualquer outro erro inesperado
+            print(f"[ERRO] Falha ao salvar CSV: {e}")
+
+    def save_config(self, data=None):
+        if data == None:
             data = self.config
-        
+
         try:
             with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4)
@@ -388,8 +440,17 @@ class TempHUD:
                 f"{displayName:3s}: {value:.1f}°C | {self.min_values[name]:.1f}~{self.max_values[name]:.1f}°C"
             )
 
+            cpu_temp = None
+            gpu_temp = None
+            if f"{displayName:3s}" == "CPU":
+                cpu_temp = f"{value:.1f}"
+            else:
+                gpu_temp = f"{value:.1f}"
+
         if not lines:
             lines = ["Nenhum sensor disponível"]
+
+        self.registrar_leitura(cpu_temp, gpu_temp)
 
         self.label.config(text="\n".join(lines))
         self.root.after(self.config["timer"], self.update_temps)
