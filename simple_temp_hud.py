@@ -427,6 +427,8 @@ class TempHUD:
     def update_temps(self):
         temps = self.get_temps()
         lines = []
+        cpu_temp = None
+        gpu_temp = None
 
         for name, value in temps.items():
             displayName = name[:3]
@@ -440,8 +442,6 @@ class TempHUD:
                 f"{displayName:3s}: {value:.1f}°C | {self.min_values[name]:.1f}~{self.max_values[name]:.1f}°C"
             )
 
-            cpu_temp = None
-            gpu_temp = None
             if f"{displayName:3s}" == "CPU":
                 cpu_temp = f"{value:.1f}"
             else:
